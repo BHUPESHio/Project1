@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="3;url={{url_for('index')}}">
+    <title>Email Verification - FitTrack</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: radial-gradient(circle at center, #e0f7fa 0%, #81d4fa 25%, #29b6f6 50%, #0288d1 75%, #01579b 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .verification-container {
+            background: white;
+            padding: 3rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .verification-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .success {
+            color: #4caf50;
+        }
+
+        .error {
+            color: #f44336;
+        }
+
+        .verification-title {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .verification-message {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .action-button {
+            background: #00bcd4;
+            color: white;
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s;
+        }
+
+        .action-button:hover {
+            background: #0097a7;
+        }
+
+        .secondary-button {
+            background: transparent;
+            color: #00bcd4;
+            border: 2px solid #00bcd4;
+            margin-left: 1rem;
+        }
+
+        .secondary-button:hover {
+            background: #00bcd4;
+            color: white;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00bcd4;
+            margin-bottom: 2rem;
+            font-family: "Orbitron", sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div class="verification-container">
+        <div class="logo">FitTrack</div>
+        
+        {% if success %}
+            <div class="verification-icon success">✓</div>
+            <h1 class="verification-title">Email Verified Successfully!</h1>
+        {% else %}
+            <div class="verification-icon error">✗</div>
+            <h1 class="verification-title">Verification Failed</h1>
+        {% endif %}
+        
+        <p class="verification-message">{{ message }}</p>
+        
+        <div class="action-buttons">
+            <a href="/" class="action-button">Go to Home</a>
+            {% if not success %}
+                <button class="action-button secondary-button" onclick="resendVerification()">
+                    Resend Verification
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function resendVerification() {
+            const email = prompt("Please enter your email address:");
+            if (email) {
+                fetch('/resend_verification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: email })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Verification email sent! Please check your inbox.');
+                    } else {
+                        alert(data.message || 'Failed to send verification email');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                });
+            }
+        }
+    </script>
+</body>
+</html>
