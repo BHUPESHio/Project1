@@ -256,6 +256,7 @@ def calculate_bodyfat():
         print("Error in /api/calculate_bodyfat:", str(e))  
         return jsonify({"success": False, "error": str(e)})
 
+
 def categorize_bodyfat(gender, value):
     zones = {
         "male": [(5, "Essential"), (13, "Athletes"), (17, "Fitness"), (24, "Average"), (40, "Obese")],
@@ -323,6 +324,62 @@ def calculate_idealweight():
     except Exception as e:
         print("Ideal weight error:", str(e))
         return jsonify({"success": False, "error": "Failed to calculate ideal weight"}), 500
+
+@app.route('/calorie')
+@login_required
+def calorie():
+    return render_template('calorie.html')
+
+@app.route('/api/calculate_calories', methods=['POST'])
+@login_required
+def calculate_calories():
+    try:
+        data = request.get_json()
+
+        age = int(data.get('age'))
+        gender = data.get('gender')
+        weight = float(data.get('weight'))
+        height = float(data.get('height'))
+        activity = data.get('activity_level')  # sedentary, moderate, active
+        units = data.get('units', 'metric')
+
+        if units == 'imperial':
+            weight *= 0.453592
+            height *= 2.54
+
+        if gender == 'male':
+            bmr = 10 * weight + 6.25 * height - 5 * age + 5
+        else:
+            bmr = 10 * weight + 6.25 * height - 5 * age - 161
+
+        activity_multiplier = {
+            "sedentary": 1.2,
+            "moderate": 1.55,
+            "active": 1.9
+        }.get(activity, 1.2)
+
+        daily_calories = round(bmr * activity_multiplier)
+
+        mongo.db.records.insert_one({
+            'user_id': ObjectId(current_user.id),
+            'type': 'calorie',
+            'age': age,
+            'gender': gender,
+            'weight': weight,
+            'height': height,
+            'activity': activity,
+            'daily_calories': daily_calories,
+            'timestamp': datetime.now(timezone.utc)
+        })
+
+        return jsonify({
+            "success": True,
+            "daily_calories": daily_calories
+        })
+
+    except Exception as e:
+        print("Error calculating calories:", str(e))
+        return jsonify({"success": False, "error": "Failed to calculate calories"}), 500
 
 
 
@@ -413,6 +470,13 @@ def dashboard():
             'timestamp': {'$gte': week_ago}
         }).sort('timestamp', 1))
 
+        calorie_records = list(mongo.db.records.find({
+            'user_id': user_id,
+            'type': 'calorie',
+            'timestamp': {'$gte': week_ago}
+        }).sort('timestamp', 1))
+
+
         return render_template("dashboard.html",
                                user=current_user,
                                bmi_records=format_records(bmi_records, 'bmi'),
@@ -420,7 +484,8 @@ def dashboard():
                                idealweight_records=format_records(idealweight_records, 'ideal_weight_kg'),
                                bmi_stats=compute_stats(bmi_records, 'bmi'),
                                bf_stats=compute_stats(bodyfat_records, 'body_fat'),
-                               iw_stats=compute_stats(idealweight_records, 'ideal_weight_kg'))
+                               iw_stats=compute_stats(idealweight_records, 'ideal_weight_kg'),
+                               calorie_records = format_records(calorie_records, 'daily_calories'))
     except Exception as e:
         print("Dashboard error:", e)
         return render_template("dashboard.html",

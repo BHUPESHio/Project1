@@ -24,6 +24,14 @@
     .record-section {
       margin-top: 2rem;
     }
+    .chart-wrapper{
+      width: 100%;
+      height: 500px;
+      margin: auto;
+      display: block;
+      position: relative;
+
+    }
   </style>
 </head>
 <body class="dash-body">
@@ -80,15 +88,18 @@
     </div>
 
     <div class="toggle-container">
-      <button id="bmi-toggle" class="toggle-btn active">BMI Chart</button>
-      <button id="bodyfat-toggle" class="toggle-btn">Body Fat % Chart</button>
-      <button id="idealweight-toggle" class="toggle-btn">Ideal Weight Chart</button>
-    </div>
+  <button id="bmi-toggle" class="toggle-btn active">BMI Chart</button>
+  <button id="bodyfat-toggle" class="toggle-btn">Body Fat % Chart</button>
+  <button id="idealweight-toggle" class="toggle-btn">Ideal Weight Chart</button>
+  <button id="calorie-toggle" class="toggle-btn">Calorie Chart</button> <!-- ✅ ADD THIS -->
+</div>
 
-    <div class="chart-wrapper" style="height: 400px;">
+
+    <div class="chart-wrapper">
       <canvas id="bmiChart"></canvas>
       <canvas id="bodyFatChart" class="hidden"></canvas>
       <canvas id="idealWeightChart" class="hidden"></canvas>
+      <canvas id="calorieChart" class="hidden"></canvas> <!-- ✅ ADD THIS -->
     </div>
     <div id="bmi-table" > 
     <section class="record-section">
@@ -164,6 +175,33 @@
       {% endif %}
     </section>
   </div>
+<div class="hidden" id="calorie-table">
+  <section class="record-section">
+    <h3>Calorie Recommendation Records</h3>
+    {% if calorie_records %}
+      <table class="record-table">
+        <thead>
+          <tr><th>Date</th><th>Calories</th><th>Age</th><th>Weight</th><th>Height</th><th>Activity</th></tr>
+        </thead>
+        <tbody>
+          {% for r in calorie_records %}
+            <tr>
+              <td>{{ r.timestamp }}</td>
+              <td>{{ r.daily_calories }}</td>
+              <td>{{ r.age }}</td>
+              <td>{{ r.weight }}</td>
+              <td>{{ r.height }}</td>
+              <td>{{ r.activity }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No Calorie records found.</p>
+    {% endif %}
+  </section>
+</div>
+
   </main>
 
   <script>
@@ -171,14 +209,19 @@
     const bmiToggle = document.getElementById('bmi-toggle');
     const bodyfatToggle = document.getElementById('bodyfat-toggle');
     const idealToggle = document.getElementById('idealweight-toggle');
+    const calorieToggle = document.getElementById('calorie-toggle');
+
 
     const bmiCanvas = document.getElementById('bmiChart');
     const bodyfatCanvas = document.getElementById('bodyFatChart');
     const idealCanvas = document.getElementById('idealWeightChart');
+    const calorieCanvas = document.getElementById('calorieChart');
 
     const bmiData = {{ bmi_records|tojson }};
     const bfData = {{ bodyfat_records|tojson }};
     const iwData = {{ idealweight_records|tojson }};
+    const calorieData = {{ calorie_records | tojson }};
+
 
     const bmiChart = new Chart(bmiCanvas, {
       type: 'line',
@@ -224,42 +267,100 @@
       },
       options: { responsive: true, scales: { y: { beginAtZero: false } } }
     });
+    const calorieChart = new Chart(calorieCanvas, {
+  type: 'line',
+  data: {
+    labels: calorieData.map(r => r.timestamp),
+    datasets: [{
+      label: 'Calories (kcal)',
+      data: calorieData.map(r => r.daily_calories),
+      borderColor: '#ff9800',
+      tension: 0.3,
+      fill: false
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: { beginAtZero: true }
+    }
+  }
+});
+
 
     function toggleChart(active) {
-      // Hide all charts
-      bmiCanvas.classList.add('hidden');
-      bodyfatCanvas.classList.add('hidden');
-      idealCanvas.classList.add('hidden');
+  const canvases = {
+    bmi: bmiCanvas,
+    bodyfat: bodyfatCanvas,
+    ideal: idealCanvas,
+    calorie: calorieCanvas
+  };
 
-      // Hide all tables
-      document.getElementById('bmi-table').classList.add('hidden');
-      document.getElementById('bodyfat-table').classList.add('hidden');
-      document.getElementById('ideal-table').classList.add('hidden');
+  const tables = {
+    bmi: document.getElementById('bmi-table'),
+    bodyfat: document.getElementById('bodyfat-table'),
+    ideal: document.getElementById('ideal-table'),
+    calorie: document.getElementById('calorie-table')
+  };
 
-      // Toggle buttons
-      bmiToggle.classList.remove('active');
-      bodyfatToggle.classList.remove('active');
-      idealToggle.classList.remove('active');
+  const buttons = {
+    bmi: bmiToggle,
+    bodyfat: bodyfatToggle,
+    ideal: idealToggle,
+    calorie: calorieToggle
+  };
 
-      if (active === 'bmi') {
-        bmiCanvas.classList.remove('hidden');
-        document.getElementById('bmi-table').classList.remove('hidden');
-        bmiToggle.classList.add('active');
-      } else if (active === 'bodyfat') {
-        bodyfatCanvas.classList.remove('hidden');
-        document.getElementById('bodyfat-table').classList.remove('hidden');
-        bodyfatToggle.classList.add('active');
-      } else {
-        idealCanvas.classList.remove('hidden');
-        document.getElementById('ideal-table').classList.remove('hidden');
-        idealToggle.classList.add('active');
-      }
-    }
+  for (const key of Object.keys(canvases)) {
+    canvases[key].classList.add('hidden');
+    tables[key].classList.add('hidden');
+    buttons[key].classList.remove('active');
+  }
+
+  canvases[active].classList.remove('hidden');
+  tables[active].classList.remove('hidden');
+  buttons[active].classList.add('active');
+}
 
     // 🧠 Bind toggle buttons
     bmiToggle.addEventListener('click', () => toggleChart('bmi'));
     bodyfatToggle.addEventListener('click', () => toggleChart('bodyfat'));
     idealToggle.addEventListener('click', () => toggleChart('ideal'));
+    calorieToggle.addEventListener('click', () => toggleChart('calorie'));
+
+    function toggleChart(active) {
+  const canvases = {
+    bmi: bmiCanvas,
+    bodyfat: bodyfatCanvas,
+    ideal: idealCanvas,
+    calorie: calorieCanvas
+  };
+
+  const tables = {
+    bmi: document.getElementById('bmi-table'),
+    bodyfat: document.getElementById('bodyfat-table'),
+    ideal: document.getElementById('ideal-table'),
+    calorie: document.getElementById('calorie-table')
+  };
+
+  const buttons = {
+    bmi: bmiToggle,
+    bodyfat: bodyfatToggle,
+    ideal: idealToggle,
+    calorie: calorieToggle
+  };
+
+  for (const key of Object.keys(canvases)) {
+    canvases[key].classList.add('hidden');
+    tables[key].classList.add('hidden');
+    buttons[key].classList.remove('active');
+  }
+
+  canvases[active].classList.remove('hidden');
+  tables[active].classList.remove('hidden');
+  buttons[active].classList.add('active');
+}
+
+    
 
     // ✅ Show default on load
     toggleChart('bmi');

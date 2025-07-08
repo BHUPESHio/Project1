@@ -410,4 +410,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 }
+
+const calorieForm = document.getElementById('calorie-form');
+if (calorieForm) {
+    calorieForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const age = document.getElementById('cal-age').value;
+        const gender = document.getElementById('cal-gender').value;
+        const weight = document.getElementById('cal-weight').value;
+        const height = document.getElementById('cal-height').value;
+        const activity = document.getElementById('cal-activity').value;
+        const units = document.querySelector('input[name="cal-units"]:checked').value;
+
+        const res = await fetch('/api/calculate_calories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ age, gender, weight, height, activity_level: activity, units })
+        });
+
+        const data = await res.json();
+        const resultDiv = document.getElementById('calorie-result');
+        resultDiv.classList.remove('hidden');
+        resultDiv.textContent = data.success
+            ? `Recommended Daily Calories: ${data.daily_calories} kcal`
+            : `Error: ${data.error}`;
+    });
+}
+
 });
