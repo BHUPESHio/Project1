@@ -12,6 +12,8 @@ from flask_mail import Mail,Message
 from itsdangerous import Serializer, URLSafeTimedSerializer
 import math
 import json
+from datetime import datetime, timedelta
+
 
 
 # Load environment variables
@@ -325,6 +327,66 @@ def calculate_idealweight():
         print("Ideal weight error:", str(e))
         return jsonify({"success": False, "error": "Failed to calculate ideal weight"}), 500
 
+
+@app.route('/bmi-predict')
+@login_required
+def bmi_predict_page():
+    return render_template('bmi_predict.html')
+
+
+@app.route('/api/predict_bmi', methods=['POST'])
+@login_required
+def predict_bmi():
+    try:
+        data = request.get_json()
+        age = int(data['age'])
+        current_bmi = float(data['bmi'])
+
+        # Example logic: Slight monthly increase
+        predicted_bmi = round(current_bmi + (age * 0.05), 2)
+
+        # Suggestion logic (you can enhance this)
+        if predicted_bmi < 18.5:
+            suggestion = "Increase calorie intake and build muscle."
+        elif predicted_bmi < 24.9:
+            suggestion = "Maintain regular exercise and healthy eating."
+        elif predicted_bmi < 29.9:
+            suggestion = "Incorporate more cardio and reduce sugar intake."
+        else:
+            suggestion = "Consult a health professional for a guided weight loss plan."
+
+        # Simulate 6-month timeline
+        months = ["July", "August", "September", "October", "November", "December"]
+        prediction_timeline = [
+            {"date": month, "bmi": round(current_bmi + (i * 0.1), 2)}
+            for i, month in enumerate(months)
+        ]
+
+        # Save to DB
+        mongo.db.records.insert_one({
+            'user_id': ObjectId(current_user.id),
+            'type': 'bmi_prediction',
+            'age': age,
+            'current_bmi': current_bmi,
+            'predicted_bmi': predicted_bmi,
+            'timestamp': datetime.now(timezone.utc)
+        })
+
+        return jsonify({
+            "success": True,
+            "current_bmi": current_bmi,
+            "predicted_bmi": predicted_bmi,
+            "suggestions": suggestion,
+            "prediction_timeline": prediction_timeline
+        })
+
+    except Exception as e:
+        print("BMI Prediction Error:", str(e))
+        return jsonify({"success": False, "error": "Failed to predict BMI"}), 500
+
+
+
+
 @app.route('/calorie')
 @login_required
 def calorie():
@@ -415,7 +477,6 @@ def logout():
     logout_user()
     return jsonify({"success": True, "message": "Logged out successfully"})
 
-from datetime import datetime, timedelta
 
 @app.route('/dashboard')
 @login_required
@@ -475,6 +536,13 @@ def dashboard():
             'type': 'calorie',
             'timestamp': {'$gte': week_ago}
         }).sort('timestamp', 1))
+        prediction_records = list(mongo.db.records.find({
+            'user_id': user_id,
+            'type': 'bmi_prediction',
+            'timestamp': {'$gte': week_ago}
+        }).sort('timestamp', 1))
+
+
 
 
         return render_template("dashboard.html",
@@ -485,7 +553,10 @@ def dashboard():
                                bmi_stats=compute_stats(bmi_records, 'bmi'),
                                bf_stats=compute_stats(bodyfat_records, 'body_fat'),
                                iw_stats=compute_stats(idealweight_records, 'ideal_weight_kg'),
-                               calorie_records = format_records(calorie_records, 'daily_calories'))
+                               calorie_stats = compute_stats(calorie_records, 'daily_calories'),
+                               calorie_records = format_records(calorie_records, 'daily_calories'),
+                                prediction_records=format_records(prediction_records, 'predicted_bmi'))
+
     except Exception as e:
         print("Dashboard error:", e)
         return render_template("dashboard.html",

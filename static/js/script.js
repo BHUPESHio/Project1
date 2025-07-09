@@ -436,5 +436,70 @@ if (calorieForm) {
             : `Error: ${data.error}`;
     });
 }
+});
 
+// -------------------- BMI Prediction Chart Logic --------------------
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('predict-form');
+  const resultBox = document.getElementById('predict-result');
+  const chartCanvas = document.getElementById('predictionChart');
+  let chart;
+
+  if (!form || !chartCanvas || !resultBox) return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const age = parseInt(document.getElementById('age').value);
+    const bmi = parseFloat(document.getElementById('bmi').value);
+
+    const res = await fetch('/api/predict_bmi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ age, bmi })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      const { predicted_bmi, suggestions, prediction_timeline } = data;
+
+      resultBox.innerHTML = `
+        <p><strong>Predicted BMI (6 months later):</strong> ${predicted_bmi}</p>
+        <p><strong>Suggestion:</strong> ${suggestions}</p>
+      `;
+      resultBox.classList.remove("hidden");
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(chartCanvas, {
+        type: 'Bar',
+        data: {
+          labels: prediction_timeline.map(p => p.date),
+          datasets: [{
+            label: 'BMI Prediction',
+            data: prediction_timeline.map(p => p.bmi),
+            borderColor: '#9c27b0',
+            fill: false,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'BMI' }
+            },
+            x: {
+              title: { display: true, text: 'Month' }
+            }
+          }
+        }
+      });
+    } else {
+      resultBox.innerHTML = `<p style="color:red;">${data.error || 'Prediction failed'}</p>`;
+      resultBox.classList.remove("hidden");
+    }
+  });
 });

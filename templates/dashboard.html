@@ -87,11 +87,25 @@
       </div>
     </div>
 
+<div class="stat-card">
+  <h3>Calorie Recommendation Summary</h3>
+  {% if calorie_records %}
+    {% set last = calorie_records[-1] %}
+    <p><strong>Latest:</strong> {{ last.daily_calories }} kcal ({{ last.timestamp }})</p>
+    <p><strong>Average:</strong> {{ calorie_stats.average }} kcal</p>
+    <p><strong>Total:</strong> {{ calorie_stats.total }}</p>
+  {% else %}
+    <p>No Calorie data available.</p>
+  {% endif %}
+</div>
+
+
     <div class="toggle-container">
   <button id="bmi-toggle" class="toggle-btn active">BMI Chart</button>
   <button id="bodyfat-toggle" class="toggle-btn">Body Fat % Chart</button>
   <button id="idealweight-toggle" class="toggle-btn">Ideal Weight Chart</button>
-  <button id="calorie-toggle" class="toggle-btn">Calorie Chart</button> <!-- ✅ ADD THIS -->
+  <button id="calorie-toggle" class="toggle-btn">Calorie Chart</button> 
+  <button id="prediction-toggle" class="toggle-btn">BMI Prediction</button>
 </div>
 
 
@@ -99,7 +113,34 @@
       <canvas id="bmiChart"></canvas>
       <canvas id="bodyFatChart" class="hidden"></canvas>
       <canvas id="idealWeightChart" class="hidden"></canvas>
-      <canvas id="calorieChart" class="hidden"></canvas> <!-- ✅ ADD THIS -->
+      <canvas id="calorieChart" class="hidden"></canvas> 
+      <canvas id="predictionChart" class="hidden"></canvas>
+    </div>
+<div class="hidden" id="prediction-table">
+  <section class="record-section">
+    <h3>BMI Prediction Records</h3>
+    {% if prediction_records %}
+      <table class="record-table">
+        <thead>
+          <tr><th>Date</th><th>Age</th><th>Current BMI</th><th>Predicted BMI</th></tr>
+        </thead>
+        <tbody>
+          {% for r in prediction_records %}
+            <tr>
+              <td>{{ r.timestamp }}</td>
+              <td>{{ r.age }}</td>
+              <td>{{ r.current_bmi }}</td>
+              <td>{{ r.predicted_bmi }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No prediction records found.</p>
+    {% endif %}
+  </section>
+</div>
+
     </div>
     <div id="bmi-table" > 
     <section class="record-section">
@@ -201,6 +242,31 @@
     {% endif %}
   </section>
 </div>
+<div class="hidden" id="prediction-table">
+  <section class="record-section">
+    <h3>BMI Prediction Records</h3>
+    {% if prediction_records %}
+      <table class="record-table">
+        <thead>
+          <tr><th>Date</th><th>Age</th><th>Current BMI</th><th>Predicted BMI</th></tr>
+        </thead>
+        <tbody>
+          {% for r in prediction_records %}
+            <tr>
+              <td>{{ r.timestamp }}</td>
+              <td>{{ r.age }}</td>
+              <td>{{ r.current_bmi }}</td>
+              <td>{{ r.predicted_bmi }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No prediction records found.</p>
+    {% endif %}
+  </section>
+</div>
+
 
   </main>
 
@@ -210,6 +276,8 @@
     const bodyfatToggle = document.getElementById('bodyfat-toggle');
     const idealToggle = document.getElementById('idealweight-toggle');
     const calorieToggle = document.getElementById('calorie-toggle');
+    const predictionToggle = document.getElementById('prediction-toggle');
+
 
 
     const bmiCanvas = document.getElementById('bmiChart');
@@ -286,6 +354,29 @@
     }
   }
 });
+const predictionCanvas = document.getElementById('predictionChart');
+const predictionData = {{ prediction_records | tojson }};
+
+const predictionChart = new Chart(predictionCanvas, {
+  type: 'line',
+  data: {
+    labels: predictionData.map(r => r.timestamp),
+    datasets: [{
+      label: 'Predicted BMI',
+      data: predictionData.map(r => r.predicted_bmi),
+      borderColor: '#9c27b0',
+      tension: 0.3,
+      fill: false
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: { beginAtZero: true }
+    }
+  }
+});
+
 
 
     function toggleChart(active) {
@@ -332,21 +423,24 @@
     bmi: bmiCanvas,
     bodyfat: bodyfatCanvas,
     ideal: idealCanvas,
-    calorie: calorieCanvas
+    calorie: calorieCanvas,
+    prediction: predictionCanvas
   };
 
   const tables = {
     bmi: document.getElementById('bmi-table'),
     bodyfat: document.getElementById('bodyfat-table'),
     ideal: document.getElementById('ideal-table'),
-    calorie: document.getElementById('calorie-table')
+    calorie: document.getElementById('calorie-table'),
+    prediction: document.getElementById('prediction-table')
   };
 
   const buttons = {
     bmi: bmiToggle,
     bodyfat: bodyfatToggle,
     ideal: idealToggle,
-    calorie: calorieToggle
+    calorie: calorieToggle,
+    prediction: predictionToggle
   };
 
   for (const key of Object.keys(canvases)) {
