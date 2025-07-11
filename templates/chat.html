@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FitBot</title>
+  <style>
+    body { font-family: Arial; background: #f4f4f4; padding: 20px; }
+    .chatbox { max-width: 700px; margin: auto; background: white; padding: 20px; border-radius: 10px; }
+    .message { padding: 10px; margin: 5px 0; border-radius: 10px; }
+    .user { background: #d1e7dd; text-align: right; }
+    .bot { background: #f8d7da; text-align: left; }
+    .loading { font-style: italic; color: #888; }
+  </style>
+</head>
+<body>
+<div class="chatbox" id="chatbox">
+  <div id="messages"></div>
+  <form id="chatForm">
+    <input type="text" id="messageInput" placeholder="Ask something health-related..." required />
+    <input type="file" id="fileInput" />
+    <button type="submit">Send</button>
+  </form>
+</div>
+<script>
+  const form = document.getElementById('chatForm');
+  const messageInput = document.getElementById('messageInput');
+  const fileInput = document.getElementById('fileInput');
+  const messages = document.getElementById('messages');
+
+  function addMessage(text, type) {
+    const div = document.createElement('div');
+    div.className = `message ${type}`;
+    div.innerHTML = text;
+    messages.appendChild(div);
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const userMsg = messageInput.value;
+    const file = fileInput.files[0];
+    addMessage(userMsg, 'user');
+    addMessage('<span class="loading">Typing...</span>', 'bot');
+
+    const formData = new FormData();
+    formData.append('message', userMsg);
+    if (file) formData.append('file', file);
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await response.json();
+    messages.lastChild.innerHTML = data.reply;
+    messageInput.value = '';
+    fileInput.value = '';
+  });
+</script>
+</body>
+</html>

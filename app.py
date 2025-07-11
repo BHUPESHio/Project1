@@ -1,5 +1,5 @@
 from typing import Collection
-from flask import Flask, redirect, render_template, request, jsonify,url_for
+from flask import Flask, redirect, render_template, request, jsonify,url_for,Blueprint
 from pymongo import MongoClient
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -13,6 +13,10 @@ from itsdangerous import Serializer, URLSafeTimedSerializer
 import math
 import json
 from datetime import datetime, timedelta
+import google.generativeai as genai
+from werkzeug.utils import secure_filename
+from utils.chat import chat_bp
+
 
 
 
@@ -29,11 +33,23 @@ MONGO_URI="mongodb+srv://Admin:bait1783@fitrackdb.o4yvman.mongodb.net/?retryWrit
 mongo=MongoClient(MONGO_URI)
 db=mongo["myDatabase"]
 users=db["users"]
+GEMINI_API_KEY=""
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-pro-vision")
+app.register_blueprint(chat_bp)
+
+
 
 # Initialize extensions
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+# Gemini API key from .env
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# Configure Gemini
+genai.configure(api_key='AIzaSyCojl5hk_fItuAEjPU26E0sJiZ8uAoM2Vs')
 
 #Database Collections
 def get_users_collection():
@@ -41,6 +57,20 @@ def get_users_collection():
 
 def get_records():
     return mongo.db.records
+
+#Chatbot
+
+def generate_reply(prompt, file_data=None):
+    try:
+        if file_data:
+            # Optional: Add logic for image or PDF processing later
+            response = model.generate_content([prompt, file_data])
+        else:
+            response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"An error occurred while processing your request: {str(e)}"
+
 
 # BMI Classification Data
 CHILD_BMI_DATA = {
@@ -102,6 +132,8 @@ def calculate_bmi_value(weight, height, units):
         return (703 * weight) / (height ** 2)
 
 # Routes
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
