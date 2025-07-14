@@ -112,14 +112,16 @@
     <input type="password" placeholder="Password" required>
     <button type="submit">Sign Up</button>
     <!-- Resend verification message for signup (initially hidden) -->
-    <p id="signup-resend-msg" class="hidden">
-        Didn’t receive your verification email? 
-        <span class="form-link" style="cursor:pointer;" onclick="resendVerification(document.getElementById('signup-email').value)">
-            Resend Verification Email
-        </span>
-    </p>
+
+    <div id="otp-section" style="display: none; margin-top: 15px;">
+      <input type="text" id="otp-input" placeholder="Enter OTP">
+      <button onclick="verifyOtp()">Verify OTP</button>
+      <p id="otp-message"></p>
+    </div>
+
     <p class="form-toggle">Already have an account? <span id="go-login" class="form-link">Login</span></p>
 </form>
+    <p id="signupMsg"></p>
     </div>
 </div>
 
@@ -136,6 +138,47 @@
 </script>
 {% endif %}
 
+<script>
+document.getElementById('signupForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value.trim();
+  
+  const res = await fetch('/signup', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name, email, password })
+  });
+
+  const data = await res.json();
+  document.getElementById('signupMsg').textContent = data.message;
+
+  if (data.success) {
+    document.getElementById('otpSection').style.display = 'block';
+    document.getElementById('sendOtpBtn').style.display = 'none';
+  }
+});
+
+document.getElementById('verifyOtpBtn').addEventListener('click', async function () {
+  const email = document.getElementById('email').value.trim();
+  const otp = document.getElementById('otp').value.trim();
+
+  const res = await fetch('/verify_otp', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ email, otp })
+  });
+
+  const data = await res.json();
+  document.getElementById('signupMsg').textContent = data.message;
+
+  if (data.success) {
+    alert("Verification Successful! Please login now.");
+    location.reload(); // or close modal and show login
+  }
+});
+</script>
 
 </body>
 </html>

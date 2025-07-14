@@ -16,6 +16,8 @@ from datetime import datetime, timedelta
 import google.generativeai as genai
 from werkzeug.utils import secure_filename
 from utils.chat import chat_bp
+import re
+import random
 
 
 
@@ -41,11 +43,12 @@ app.register_blueprint(chat_bp)
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'your_email@gmail.com'
-app.config['MAIL_PASSWORD'] = 'your_app_password'
+app.config['MAIL_USERNAME'] = 'examplep489@gmail.com'
+app.config['MAIL_PASSWORD'] = 'rmyr hwug keok syfv'
 mail = Mail(app)
 
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+
 
 
 # Initialize extensions
@@ -218,41 +221,46 @@ def calculate_bmi():
 def signup():
     try:
         data = request.get_json()
-        
-        # Validate input
-        if not data or not all(k in data for k in ('name', 'email', 'password')):
-            return jsonify({"success": False, "message": "Missing required fields"}), 400
-        
-        # Check if user already exists
-        users_collection=get_users_collection()
-        existing_user = users_collection.find_one({'email': data['email']})
-        if existing_user:
-            return jsonify({"success": False, "message": "Email already registered"}), 409
-        
-        # Hash password and create user
-        hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-        user_id = mongo.db.users.insert_one({
-            'name': data['name'],
-            'email': data['email'],
-            'password': hashed_password,
-            'created_at': datetime.now(timezone.utc)
-        }).inserted_id
-        # Generate token
-        token = s.dumps('email', salt='email-confirm')
-        link = url_for('verify_email', token=token, _external=True)
+        name = data.get('name')
+        email = data.get('email')
+        password = data.get('password')
 
-# Send verification email
-        msg = Message("Email Verification - FitTrack",
-              sender="your_email@gmail.com",
-              recipients=['email'])
-        msg.body = f"Click the link to verify your account: {link}"
+        if not all([name, email, password]):
+            return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+        users_collection = get_users_collection()
+        if users_collection.find_one({"email": email}):
+            return jsonify({"success": False, "message": "Email already registered"}), 409
+
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+
+        # 🔐 Generate 6-digit OTP
+        otp = str(random.randint(100000, 999999))
+        expiry = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+        # ⏳ Store user with OTP (and is_verified = False)
+        users_collection.insert_one({
+            "name": name,
+            "email": email,
+            "password": hashed_password,
+            "otp": otp,
+            "otp_expiry": expiry,
+            "is_verified": False,
+            "created_at": datetime.now(timezone.utc)
+        })
+
+        # 📩 Send Email
+        msg = Message("Your OTP for FitTrack Signup",
+                      sender=app.config['MAIL_USERNAME'],
+                      recipients=[email])
+        msg.body = f"Hello {name},\n\nYour OTP is: {otp}\nThis OTP will expire in 10 minutes."
         mail.send(msg)
 
-        return jsonify({"success":True,"message":"Account created ! Check your mail for Verification! "})
-        
+        return jsonify({"success": True, "message": "OTP sent to your email. Please verify."}), 200
+
     except Exception as e:
-        print(f"Error during signup: {e}")
-        return jsonify({"success": False, "message": "Registration failed"}), 500
+        print("Signup Error:", str(e))
+        return jsonify({"success": False, "message": "Signup failed."}), 500
 
 @app.route('/bodyfat')
 def bodyfat():
@@ -306,14 +314,40 @@ def calculate_bodyfat():
         print("Error in /api/calculate_bodyfat:", str(e))  
         return jsonify({"success": False, "error": str(e)})
 
-@app.route('/verify_email/<token>')
-def verify_email(token):
+@app.route('/verify_otp', methods=['POST'])
+def verify_otp():
     try:
-        email = s.loads(token, salt='email-confirm', max_age=3600)
-        mongo.db.users.update_one({"email": email}, {"$set": {"is_verified": True}})
-        return render_template('verified.html')  # Must exist in templates/
-    except:
-        return "<h3>Verification link is invalid or expired.</h3>"
+        data = request.get_json()
+        email = data.get('email')
+        otp_entered = data.get('otp')
+
+        if not all([email, otp_entered]):
+            return jsonify({"success": False, "message": "Email and OTP are required"}), 400
+
+        user = get_users_collection().find_one({"email": email})
+        if not user:
+            return jsonify({"success": False, "message": "User not found"}), 404
+
+        if user.get("is_verified"):
+            return jsonify({"success": True, "message": "Account already verified."}), 200
+
+        if datetime.now(timezone.utc) > user.get("otp_expiry"):
+            return jsonify({"success": False, "message": "OTP expired"}), 400
+
+        if user.get("otp") != otp_entered:
+            return jsonify({"success": False, "message": "Invalid OTP"}), 400
+
+        # ✅ Mark user as verified
+        get_users_collection().update_one({"email": email}, {
+            "$set": {"is_verified": True},
+            "$unset": {"otp": "", "otp_expiry": ""}
+        })
+
+        return jsonify({"success": True, "message": "Account verified successfully!"})
+
+    except Exception as e:
+        print("OTP Verification Error:", str(e))
+        return jsonify({"success": False, "message": "Verification failed"}), 500
 
 
 
@@ -554,13 +588,14 @@ def resend_verification():
     if user.get("is_verified"):
         return jsonify({"success": False, "message": "Account already verified."}), 200
 
-    # Generate and send a new token
-    token = s.dumps(email, salt='email-confirm')
+    # Generate token
+    token = s.dumps(data['email'], salt='email-confirm')
     link = url_for('verify_email', token=token, _external=True)
 
-    msg = Message("Resend Email Verification - FitTrack",
-                  sender="your_email@gmail.com",
-                  recipients=[email])
+# Send verification email
+    msg = Message("Email Verification - FitTrack",
+              sender="examplep489@gmail.com",
+              recipients=[data['email']])
     msg.body = f"Click the link to verify your account: {link}"
     mail.send(msg)
 

@@ -41,36 +41,35 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   loginForm?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = loginForm.querySelector('input[type="email"]').value;
-  const password = loginForm.querySelector('input[type="password"]').value;
+    e.preventDefault();
+    const email = loginForm.querySelector('input[type="email"]').value;
+    const password = loginForm.querySelector('input[type="password"]').value;
 
-  const res = await fetch('/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  });
+    const res = await fetch('/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
 
-  const result = await res.json();
-  if (result.success) {
-    alert("Logged in successfully!");
-    authModal.classList.add('hidden');
-    authButton?.classList.add('hidden');
-    profileMenu?.classList.remove('hidden');
-  } else {
-    alert(result.message || "Login failed");
+    const result = await res.json();
+    if (result.success) {
+      alert("Logged in successfully!");
+      authModal.classList.add('hidden');
+      authButton?.classList.add('hidden');
+      profileMenu?.classList.remove('hidden');
+    } else {
+      alert(result.message || "Login failed");
 
-    // Show resend verification message if email not verified
-    if (result.message && result.message.toLowerCase().includes("verify your email")) {
-      const resendMsg = document.getElementById("resend-verification-msg");
-      if (resendMsg) {
-        resendMsg.classList.remove("hidden");
+      if (result.message && result.message.toLowerCase().includes("verify your email")) {
+        const resendMsg = document.getElementById("resend-verification-msg");
+        if (resendMsg) {
+          resendMsg.classList.remove("hidden");
+        }
       }
     }
-  }
-});
+  });
 
-
+  // ✅ OTP Signup Flow
   signupForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const inputs = signupForm.querySelectorAll('input');
@@ -86,10 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const result = await res.json();
     if (result.success) {
-      alert("Signup successful!");
-      authModal.classList.add('hidden');
-      authButton?.classList.add('hidden');
-      profileMenu?.classList.remove('hidden');
+      alert("OTP sent to your email. Please verify.");
+      document.getElementById('otp-section').style.display = 'block';
     } else {
       alert(result.message || "Signup failed");
     }
@@ -108,6 +105,65 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // -------------------- BMI Logic --------------------
+  // ... [Your original BMI, Body Fat, Ideal Weight, Calorie & Prediction logic stays unchanged]
+
+  // -------------------- Resend Verification --------------------
+  window.resendVerification = function(email) {
+    if (!email) {
+      alert("Please enter your email address.");
+      return;
+    }
+
+    fetch('/resend_verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message || data.error || "Email request sent.");
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Something went wrong while resending verification.");
+      });
+  };
+});
+
+// ✅ OTP Verification Function — Global Scope
+function verifyOtp() {
+  const email = document.getElementById('signup-email').value;
+  const otp = document.getElementById('otp-input').value;
+  const otpMessage = document.getElementById('otp-message');
+
+  fetch('/verify_otp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, otp })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        otpMessage.textContent = "✅ Account verified successfully!";
+        otpMessage.style.color = "green";
+        document.getElementById('otp-section').style.display = 'none';
+        alert("You can now log in!");
+      } else {
+        otpMessage.textContent = data.message || "Invalid OTP.";
+        otpMessage.style.color = "red";
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      otpMessage.textContent = "Something went wrong.";
+      otpMessage.style.color = "red";
+    });
+}
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  
   // -------------------- BMI Logic --------------------
   const bmiForm = document.getElementById('bmi-form');
   if (bmiForm) {
@@ -531,4 +587,6 @@ document.addEventListener('DOMContentLoaded', () => {
       resultBox.classList.remove("hidden");
     }
   });
+  
 });
+
