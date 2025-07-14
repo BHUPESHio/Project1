@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitTrack | BMI Calculator</title>
+    <link rel="stylesheet" href="{{url_for('static',filename='css/style.css')}}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+    
+</head>
+<body>
+    <!-- Header -->
+    <header class="main-header">
+        <nav class="navbar">
+            <div class="logo">FitTrack</div>
+            <ul class="nav-links">
+                <li><a href="/" >BMI</a></li>
+                <li><a href="/bodyfat">Body Fat %</a></li>
+                <li><a href="/idealweight">Ideal Weight</a></li>
+                <li><a href="/calorie" class="nav-link active">Calories Recommendation</a></li>
+                <li><a href="/bmi-predict" >BMI Prediction</a></li>
+            </ul>
+                <!-- 👤 Profile dropdown (initially hidden) -->
+            <div class="profile-menu hidden">
+                <button class="profile-icon">👤</button>
+                <div class="profile-dropdown hidden">
+                    <a href="/dashboard">Dashboard</a>
+                    <a href="/chat">Fit-Chat</a>
+                    <a href="#" id="logout-link">Logout</a>
+                </div>
+            </div>
+            
+
+            <!-- 🔐 Login button -->
+            <button class="auth-button">Log-In</button>
+        </nav>
+    </header>
+
+    <!-- Main Container -->
+
+
+{% block content %}
+<main class="container">
+    <h2 class="page-title">Daily Calorie Recommendation</h2>
+    <div class="form-box">
+        <form id="calorie-form">
+            <label>Age:</label>
+            <input type="number" id="cal-age" required>
+
+            <label>Gender:</label>
+            <select id="cal-gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+
+            <label>Weight:</label>
+            <input type="number" id="cal-weight" required>
+
+            <label>Height:</label>
+            <input type="number" id="cal-height" required>
+
+            <label>Activity Level:</label>
+            <select id="cal-activity">
+                <option value="sedentary">Sedentary</option>
+                <option value="moderate">Moderate</option>
+                <option value="active">Active</option>
+            </select>
+
+            <label>Units:</label>
+            <label><input type="radio" name="cal-units" value="metric" checked> Metric</label>
+            <label><input type="radio" name="cal-units" value="imperial"> Imperial</label>
+
+            <button type="submit">Calculate</button>
+        </form>
+
+        <div id="calorie-result" class="hidden result-box"></div>
+    </div>
+</main>
+{% endblock %}
+
+
+<!-- Auth Modal -->
+<div id="auth-modal" class="auth-modal hidden">
+    <div class="auth-box">
+        <button type="button" class="close-modal">✕</button>
+        <div class="auth-tabs">
+            <h2 id="modal-title">Login</h2>
+        </div>
+
+        <!-- Login Form -->
+        <!-- Login Form -->
+<form id="login-form" class="auth-form">
+    <input type="email" placeholder="Email" required id="login-email">
+    <input type="password" placeholder="Password" required>
+    <button type="submit">Login</button>
+    <!-- Resend verification message (hidden by default) -->
+    <p id="resend-verification-msg" class="hidden">
+        Didn’t receive your verification email? 
+        <span class="form-link" style="cursor:pointer;" onclick="resendVerification(document.getElementById('login-email').value)">
+            Resend Verification Email
+        </span>
+    </p>
+    <p class="form-toggle">Don't have an account? <span id="go-signup" class="form-link">Sign Up</span></p>
+</form>
+
+
+        <!-- Signup Form -->
+       <!-- Signup Form -->
+<form id="signup-form" class="auth-form hidden">
+    <input type="text" placeholder="Full Name" required>
+    <input type="email" placeholder="Email" required id="signup-email">
+    <input type="password" placeholder="Password" required>
+    <button type="submit">Sign Up</button>
+    <!-- Resend verification message for signup (initially hidden) -->
+    <p id="signup-resend-msg" class="hidden">
+        Didn’t receive your verification email? 
+        <span class="form-link" style="cursor:pointer;" onclick="resendVerification(document.getElementById('signup-email').value)">
+            Resend Verification Email
+        </span>
+    </p>
+    <p class="form-toggle">Already have an account? <span id="go-login" class="form-link">Login</span></p>
+</form>
+
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+{% if current_user.is_authenticated %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const signInButton = document.querySelector('.auth-button');
+        const profileMenu = document.querySelector('.profile-menu');
+        if (signInButton) signInButton.classList.add('hidden');
+        if (profileMenu) profileMenu.classList.remove('hidden');
+    });
+</script>
+{% endif %}
+
+
+</body>
+</html>

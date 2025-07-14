@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FitTrack | BMI Calculator</title>
+  <link rel="stylesheet" href="{{url_for('static',filename='css/style.css')}}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+  <style>
+.bmi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.form-box, .chart-box {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  height:400px;
+}
+
+.chart-box canvas {
+  width: 100% !important;
+  height: 400px !important;
+}
+
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="main-header">
+    <nav class="navbar">
+      <div class="logo">FitTrack</div>
+      <ul class="nav-links">
+        <li><a href="/">BMI</a></li>
+        <li><a href="/bodyfat">Body Fat %</a></li>
+        <li><a href="/idealweight">Ideal Weight</a></li>
+        <li><a href="/calorie">Calories Recommendation</a></li>
+        <li><a href="/bmi-predict" class="nav-link active">BMI Prediction</a></li>
+      </ul>
+
+      <div class="profile-menu hidden">
+        <button class="profile-icon">👤</button>
+        <div class="profile-dropdown hidden">
+          <a href="/dashboard">Dashboard</a>
+          <a href="/chat">Fit-Chat</a>
+          <a href="#" id="logout-link">Logout</a>
+        </div>
+      </div>
+
+      <button class="auth-button">Log-In</button>
+    </nav>
+  </header>
+
+  <!-- Main Container -->
+<main class="container">
+  <h2 class="page-title">BMI Prediction & Fitness Suggestion</h2>
+
+  <div class="bmi-grid">
+    <!-- Prediction Form -->
+    <div class="form-box">
+      <form id="predict-form">
+        <label for="bmi">Current BMI:</label>
+        <input type="number" step="any" id="bmi" required>
+
+        <label for="age">Age:</label>
+        <input type="number" id="age" required>
+
+        <button type="submit">Predict</button>
+      </form>
+
+      <div id="predict-result" class="hidden result-box"></div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-box">
+      <canvas id="predictionChart"></canvas>
+    </div>
+  </div>
+</main>
+
+  <!-- Auth Modal -->
+  <div id="auth-modal" class="auth-modal hidden">
+    <div class="auth-box">
+      <button type="button" class="close-modal">✕</button>
+      <div class="auth-tabs">
+        <h2 id="modal-title">Login</h2>
+      </div>
+
+     <!-- Login Form -->
+<form id="login-form" class="auth-form">
+    <input type="email" placeholder="Email" required id="login-email">
+    <input type="password" placeholder="Password" required>
+    <button type="submit">Login</button>
+    <!-- Resend verification message (hidden by default) -->
+    <p id="resend-verification-msg" class="hidden">
+        Didn’t receive your verification email? 
+        <span class="form-link" style="cursor:pointer;" onclick="resendVerification(document.getElementById('login-email').value)">
+            Resend Verification Email
+        </span>
+    </p>
+    <p class="form-toggle">Don't have an account? <span id="go-signup" class="form-link">Sign Up</span></p>
+</form>
+
+
+      <!-- Signup Form -->
+<form id="signup-form" class="auth-form hidden">
+    <input type="text" placeholder="Full Name" required>
+    <input type="email" placeholder="Email" required id="signup-email">
+    <input type="password" placeholder="Password" required>
+    <button type="submit">Sign Up</button>
+    <!-- Resend verification message for signup (initially hidden) -->
+    <p id="signup-resend-msg" class="hidden">
+        Didn’t receive your verification email? 
+        <span class="form-link" style="cursor:pointer;" onclick="resendVerification(document.getElementById('signup-email').value)">
+            Resend Verification Email
+        </span>
+    </p>
+    <p class="form-toggle">Already have an account? <span id="go-login" class="form-link">Login</span></p>
+</form>
+
+    </div>
+  </div>
+
+  <!-- JS -->
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+  {% if current_user.is_authenticated %}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelector('.auth-button')?.classList.add('hidden');
+      document.querySelector('.profile-menu')?.classList.remove('hidden');
+    });
+  </script>
+  {% endif %}
+</body>
+</html>

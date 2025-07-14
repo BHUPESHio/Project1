@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitTrack | BMI Calculator</title>
+    <link rel="stylesheet" href="{{url_for('static',filename='css/style.css')}}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+    <style>
+    #ideal-weight-result {
+      background-color: #f8f9fa;
+      color: #333;
+      border: 1px solid #ccc;
+      padding: 12px 16px;
+      margin-top: 1rem;
+      border-radius: 6px;
+      font-size: 1rem;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+
+}
+    .hidden {
+  display: none !important;
+}
+
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="main-header">
+        <nav class="navbar">
+            <div class="logo">FitTrack</div>
+            <ul class="nav-links">
+                <li><a href="/" >BMI</a></li>
+                <li><a href="/bodyfat">Body Fat %</a></li>
+                <li><a href="/idealweight" class="nav-links active">Ideal Weight</a></li>
+                <li><a href="/calorie" >Calories Recommendation</a></li>
+                <li><a href="/bmi-predict" >BMI Prediction</a></li>
+            </ul>
+                <!-- 👤 Profile dropdown (initially hidden) -->
+            <div class="profile-menu hidden">
+                <button class="profile-icon">👤</button>
+                <div class="profile-dropdown hidden">
+                    <a href="/dashboard">Dashboard</a>
+                    <a href="/chat">Fit-Chat</a>
+                    <a href="#" id="logout-link">Logout</a>
+                </div>
+            </div>
+            
+
+            <!-- 🔐 Login button -->
+            <button class="auth-button">Log-In</button>
+        </nav>
+    </header>
+
+  <main class="container">
+    <h2 class="page-title">Ideal Weight Calculator</h2>
+
+    <div class="bmi-grid">
+      <div class="form-box">
+        <form id="ideal-weight-form">
+          <div class="unit-switch">
+            <label><input type="radio" name="units" value="metric" checked /> Metric Units (cm)</label>
+            <label><input type="radio" name="units" value="imperial" /> Imperial Units (inches)</label>
+          </div>
+
+          <label for="age">Age:</label>
+          <input type="number" id="age" placeholder="Enter age" required />
+
+          <label>Gender:</label>
+          <select id="gender" required>
+            <option value="">Select gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+
+          <label for="height">Height:</label>
+          <input type="number" id="height" step="any" placeholder="Enter height" required />
+
+          <button type="submit">Calculate</button>
+        </form>
+
+        <div id="ideal-weight-result" class="hidden"></div>
+
+      </div>
+
+      <div class="chart-box">
+        <canvas id="idealWeightChart"></canvas>
+      </div>
+    </div>
+  </main>
+  {% if current_user.is_authenticated %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const signInButton = document.querySelector('.auth-button');
+        const profileMenu = document.querySelector('.profile-menu');
+        if (signInButton) signInButton.classList.add('hidden');
+        if (profileMenu) profileMenu.classList.remove('hidden');
+    });
+</script>
+{% endif %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('ideal-weight-form');
+    const resultDiv = document.getElementById('ideal-weight-result');
+    const chartCanvas = document.getElementById('idealWeightChart');
+    let idealChart;
+
+    // Hide resultDiv initially
+    resultDiv.classList.add('hidden');
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const age = parseInt(document.getElementById('age').value);
+      const gender = document.getElementById('gender').value;
+      const height = parseFloat(document.getElementById('height').value);
+      const units = document.querySelector('input[name="units"]:checked')?.value;
+
+      if (!age || !gender || !height || !units) return;
+
+      const response = await fetch('/api/calculate_idealweight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ age, gender, height, units })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const label = `${data.ideal_weight} ${units === "metric" ? 'kg' : 'lbs'}`;
+        resultDiv.innerHTML = `Your ideal weight is <strong>${label}</strong>`;
+        resultDiv.classList.remove('hidden'); // ✅ Show result box
+        drawIdealWeightChart(gender, data.ideal_weight, units);
+      } else {
+        resultDiv.innerHTML = `<span style="color:red;">${data.error || 'Calculation error'}</span>`;
+        resultDiv.classList.remove('hidden'); // ✅ Show error
+      }
+    });
+
+    function drawIdealWeightChart(gender, userWeight, units) {
+      const ranges = {
+        male: { base: 50, step: 0.9 },
+        female: { base: 45.5, step: 0.9 }
+      };
+
+      const labels = [150, 155, 160, 165, 170, 175, 180, 185, 190];
+      const values = labels.map(h => {
+        let kg = ranges[gender].base + ranges[gender].step * (h - 152);
+        return units === 'imperial' ? +(kg * 2.20462).toFixed(2) : +kg.toFixed(2);
+      });
+
+      if (idealChart) idealChart.destroy();
+
+      idealChart = new Chart(chartCanvas, {
+        type: 'line',
+        data: {
+          labels: labels.map(h => `${h} cm`),
+          datasets: [{
+            label: `Ideal Weight (${units === 'metric' ? 'kg' : 'lbs'})`,
+            data: values,
+            borderColor: '#42a5f5',
+            tension: 0.3,
+            fill: false,
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                afterBody: () => `Your result: ${userWeight} ${units === 'metric' ? 'kg' : 'lbs'}`
+              }
+            }
+          },
+          scales: {
+            y: { beginAtZero: false }
+          }
+        }
+      });
+    }
+  });
+</script>
+
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

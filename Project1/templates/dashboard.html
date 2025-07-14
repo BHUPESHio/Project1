@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Your Dashboard | FitTrack</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .record-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    .record-table th, .record-table td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+    .record-table th {
+      background-color: #f0f0f0;
+    }
+    .record-section {
+      margin-top: 2rem;
+    }
+    .chart-wrapper {
+      width: 100%;
+      height: 500px;
+      margin: auto;
+      display: block;
+      position: relative;
+    }
+    .double-card {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .double-card .stat-card {
+      flex: 1;
+      min-width: 300px;
+    }
+  </style>
+</head>
+<body class="dash-body">
+  <header class="main-header">
+    <nav class="navbar">
+      <div class="logo">FitTrack</div>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/dashboard" class="nav-link active">Dashboard</a></li>
+        <li><a href="/chat">Fit-Chat</a></li>
+      </ul>
+      <span>👤 {{ user.name }}</span>
+    </nav>
+  </header>
+
+  <main class="container">
+    <h2 class="page-title">Dashboard</h2>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>BMI Prediction Summary</h3>
+        {% if prediction_records %}
+          {% set last = prediction_records[-1] %}
+          <p><strong>Predicted BMI:</strong> {{ last.predicted_bmi }}</p>
+          <p><strong>Current BMI:</strong> {{ last.current_bmi }}</p>
+          <p><strong>Predicted On:</strong> {{ last.timestamp }}</p>
+        {% else %}
+          <p>No BMI Prediction data available.</p>
+        {% endif %}
+      </div>
+
+      <div class="stat-card">
+        <h3>BMI Summary</h3>
+        {% if bmi_stats %}
+          <p><strong>Latest:</strong> {{ bmi_stats.latest }} ({{ bmi_stats.latest_date }})</p>
+          <p><strong>Average:</strong> {{ bmi_stats.average }}</p>
+          <p><strong>Min:</strong> {{ bmi_stats.min }}, <strong>Max:</strong> {{ bmi_stats.max }}</p>
+          <p><strong>Total:</strong> {{ bmi_stats.total }}</p>
+        {% else %}
+          <p>No BMI data available.</p>
+        {% endif %}
+      </div>
+
+      <div class="stat-card">
+        <h3>Body Fat % Summary</h3>
+        {% if bf_stats %}
+          <p><strong>Latest:</strong> {{ bf_stats.latest }}% ({{ bf_stats.latest_date }})</p>
+          <p><strong>Average:</strong> {{ bf_stats.average }}%</p>
+          <p><strong>Min:</strong> {{ bf_stats.min }}%, <strong>Max:</strong> {{ bf_stats.max }}%</p>
+          <p><strong>Total:</strong> {{ bf_stats.total }}</p>
+        {% else %}
+          <p>No Body Fat data available.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="double-card">
+      <div class="stat-card">
+        <h3>Ideal Weight Summary</h3>
+        {% if iw_stats %}
+          <p><strong>Latest:</strong> {{ iw_stats.latest }} kg ({{ iw_stats.latest_date }})</p>
+          <p><strong>Average:</strong> {{ iw_stats.average }} kg</p>
+          <p><strong>Min:</strong> {{ iw_stats.min }} kg, <strong>Max:</strong> {{ iw_stats.max }} kg</p>
+          <p><strong>Total:</strong> {{ iw_stats.total }}</p>
+        {% else %}
+          <p>No Ideal Weight data available.</p>
+        {% endif %}
+      </div>
+
+      <div class="stat-card">
+        <h3>Calorie Recommendation Summary</h3>
+        {% if calorie_records %}
+          {% set last = calorie_records[-1] %}
+          <p><strong>Latest:</strong> {{ last.daily_calories }} kcal ({{ last.timestamp }})</p>
+          <p><strong>Average:</strong> {{ calorie_stats.average }} kcal</p>
+          <p><strong>Total:</strong> {{ calorie_stats.total }}</p>
+        {% else %}
+          <p>No Calorie data available.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Toggle Buttons -->
+    <div class="toggle-container" style="margin-top: 2rem;">
+      <button id="bmi-toggle" class="toggle-btn active">BMI Chart</button>
+      <button id="bodyfat-toggle" class="toggle-btn">Body Fat % Chart</button>
+      <button id="idealweight-toggle" class="toggle-btn">Ideal Weight Chart</button>
+      <button id="calorie-toggle" class="toggle-btn">Calorie Chart</button>
+      <button id="prediction-toggle" class="toggle-btn">Prediction Chart</button>
+    </div>
+
+    <!-- Chart Area -->
+    <div class="chart-wrapper">
+      <canvas id="bmiChart"></canvas>
+      <canvas id="bodyFatChart" class="hidden"></canvas>
+      <canvas id="idealWeightChart" class="hidden"></canvas>
+      <canvas id="calorieChart" class="hidden"></canvas>
+      <canvas id="predictionChart" class="hidden"></canvas>
+    </div>
+
+    <!-- Record Tables -->
+    <div id="bmi-table">
+      <section class="record-section">
+        <h3>BMI Records</h3>
+        {% if bmi_records %}
+        <table class="record-table">
+          <thead>
+            <tr><th>Date</th><th>BMI</th><th>Age</th><th>Height</th><th>Weight</th></tr>
+          </thead>
+          <tbody>
+            {% for r in bmi_records %}
+              <tr>
+                <td>{{ r.timestamp }}</td>
+                <td>{{ r.bmi }}</td>
+                <td>{{ r.age }}</td>
+                <td>{{ r.height }}</td>
+                <td>{{ r.weight }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+          <p>No BMI records found.</p>
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="hidden" id="bodyfat-table">
+      <section class="record-section">
+        <h3>Body Fat Records</h3>
+        {% if bodyfat_records %}
+        <table class="record-table">
+          <thead>
+            <tr><th>Date</th><th>Body Fat %</th><th>Waist</th><th>Neck</th><th>Hip</th></tr>
+          </thead>
+          <tbody>
+            {% for r in bodyfat_records %}
+              <tr>
+                <td>{{ r.timestamp }}</td>
+                <td>{{ r.body_fat }}</td>
+                <td>{{ r.waist }}</td>
+                <td>{{ r.neck }}</td>
+                <td>{{ r.hip }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+          <p>No Body Fat records found.</p>
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="hidden" id="ideal-table">
+      <section class="record-section">
+        <h3>Ideal Weight Records</h3>
+        {% if idealweight_records %}
+        <table class="record-table">
+          <thead>
+            <tr><th>Date</th><th>Ideal Weight</th><th>Height</th><th>Age</th></tr>
+          </thead>
+          <tbody>
+            {% for r in idealweight_records %}
+              <tr>
+                <td>{{ r.timestamp }}</td>
+                <td>{{ r.ideal_weight_kg }}</td>
+                <td>{{ r.height_cm }}</td>
+                <td>{{ r.age }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+          <p>No Ideal Weight records found.</p>
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="hidden" id="calorie-table">
+      <section class="record-section">
+        <h3>Calorie Recommendation Records</h3>
+        {% if calorie_records %}
+        <table class="record-table">
+          <thead>
+            <tr><th>Date</th><th>Calories</th><th>Age</th><th>Weight</th><th>Height</th><th>Activity</th></tr>
+          </thead>
+          <tbody>
+            {% for r in calorie_records %}
+              <tr>
+                <td>{{ r.timestamp }}</td>
+                <td>{{ r.daily_calories }}</td>
+                <td>{{ r.age }}</td>
+                <td>{{ r.weight }}</td>
+                <td>{{ r.height }}</td>
+                <td>{{ r.activity }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+          <p>No Calorie records found.</p>
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="hidden" id="prediction-table">
+      <section class="record-section">
+        <h3>BMI Prediction Records</h3>
+        {% if prediction_records %}
+        <table class="record-table">
+          <thead>
+            <tr><th>Date</th><th>Age</th><th>Current BMI</th><th>Predicted BMI</th></tr>
+          </thead>
+          <tbody>
+            {% for r in prediction_records %}
+              <tr>
+                <td>{{ r.timestamp }}</td>
+                <td>{{ r.age }}</td>
+                <td>{{ r.current_bmi }}</td>
+                <td>{{ r.predicted_bmi }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+          <p>No prediction records found.</p>
+        {% endif %}
+      </section>
+    </div>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const bmiToggle = document.getElementById('bmi-toggle');
+      const bodyfatToggle = document.getElementById('bodyfat-toggle');
+      const idealToggle = document.getElementById('idealweight-toggle');
+      const calorieToggle = document.getElementById('calorie-toggle');
+      const predictionToggle = document.getElementById('prediction-toggle');
+
+      const bmiCanvas = document.getElementById('bmiChart');
+      const bodyfatCanvas = document.getElementById('bodyFatChart');
+      const idealCanvas = document.getElementById('idealWeightChart');
+      const calorieCanvas = document.getElementById('calorieChart');
+      const predictionCanvas = document.getElementById('predictionChart');
+
+      const bmiData = {{ bmi_records|tojson }};
+      const bfData = {{ bodyfat_records|tojson }};
+      const iwData = {{ idealweight_records|tojson }};
+      const calorieData = {{ calorie_records|tojson }};
+      const predictionData = {{ prediction_records|tojson }};
+
+      new Chart(bmiCanvas, {
+        type: 'line',
+        data: {
+          labels: bmiData.map(r => r.timestamp),
+          datasets: [{ label: 'BMI', data: bmiData.map(r => r.bmi), borderColor: '#1976d2', tension: 0.3 }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+      });
+
+      new Chart(bodyfatCanvas, {
+        type: 'line',
+        data: {
+          labels: bfData.map(r => r.timestamp),
+          datasets: [{ label: 'Body Fat %', data: bfData.map(r => r.body_fat), borderColor: '#c62828', tension: 0.3 }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+      });
+
+      new Chart(idealCanvas, {
+        type: 'line',
+        data: {
+          labels: iwData.map(r => r.timestamp),
+          datasets: [{ label: 'Ideal Weight', data: iwData.map(r => r.ideal_weight_kg), borderColor: '#2e7d32', tension: 0.3 }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: false } } }
+      });
+
+      new Chart(calorieCanvas, {
+        type: 'line',
+        data: {
+          labels: calorieData.map(r => r.timestamp),
+          datasets: [{ label: 'Calories', data: calorieData.map(r => r.daily_calories), borderColor: '#ff9800', tension: 0.3 }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+      });
+
+      new Chart(predictionCanvas, {
+        type: 'line',
+        data: {
+          labels: predictionData.map(r => r.timestamp),
+          datasets: [{ label: 'Predicted BMI', data: predictionData.map(r => r.predicted_bmi), borderColor: '#9c27b0', tension: 0.3 }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+      });
+
+      function toggleChart(active) {
+        const canvases = {
+          bmi: bmiCanvas,
+          bodyfat: bodyfatCanvas,
+          ideal: idealCanvas,
+          calorie: calorieCanvas,
+          prediction: predictionCanvas
+        };
+        const tables = {
+          bmi: document.getElementById('bmi-table'),
+          bodyfat: document.getElementById('bodyfat-table'),
+          ideal: document.getElementById('ideal-table'),
+          calorie: document.getElementById('calorie-table'),
+          prediction: document.getElementById('prediction-table')
+        };
+        const buttons = {
+          bmi: bmiToggle,
+          bodyfat: bodyfatToggle,
+          ideal: idealToggle,
+          calorie: calorieToggle,
+          prediction: predictionToggle
+        };
+
+        Object.keys(canvases).forEach(key => {
+          if (canvases[key]) canvases[key].classList.add('hidden');
+          if (tables[key]) tables[key].classList.add('hidden');
+          if (buttons[key]) buttons[key].classList.remove('active');
+        });
+
+        if (canvases[active]) canvases[active].classList.remove('hidden');
+        if (tables[active]) tables[active].classList.remove('hidden');
+        if (buttons[active]) buttons[active].classList.add('active');
+      }
+
+      bmiToggle.addEventListener('click', () => toggleChart('bmi'));
+      bodyfatToggle.addEventListener('click', () => toggleChart('bodyfat'));
+      idealToggle.addEventListener('click', () => toggleChart('ideal'));
+      calorieToggle.addEventListener('click', () => toggleChart('calorie'));
+      predictionToggle.addEventListener('click', () => toggleChart('prediction'));
+
+      toggleChart('bmi');
+    });
+  </script>
+</body>
+</html>
